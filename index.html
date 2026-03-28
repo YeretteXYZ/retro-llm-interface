@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local LLM Terminal</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0a;
+            color: #c0c0c0;
+            font-family: 'Courier New', 'Courier', monospace;
+            font-size: 16px;
+            line-height: 1.6;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            z-index: 2;
+            background-size: 100% 3px;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+        
+        @keyframes flicker {
+            0% { opacity: 1; }
+            100% { opacity: 1; }
+        }
+        
+        body::after {
+            display: none;
+        }
+        
+        .container {
+            position: relative;
+            z-index: 1;
+            height: 100vh;
+            padding: 20px;
+            overflow-y: auto;
+            background: #0a0a0a;
+        }
+        
+        .header {
+            border: 1px solid #808080;
+            padding: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .output {
+            min-height: 400px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            line-height: 1.4;
+            opacity: 0;
+            animation: fadeIn 0.3s ease-in forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .user-msg {
+            color: #ffffff;
+        }
+        
+        .ai-msg {
+            color: #ffb000;
+        }
+        
+        .system-msg {
+            color: #808080;
+        }
+        
+        .input-area {
+            border-top: 1px solid #808080;
+            padding-top: 15px;
+            position: sticky;
+            bottom: 0;
+            background: #0a0a0a;
+        }
+        
+        .prompt {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .prompt-symbol {
+            color: #c0c0c0;
+            font-size: 16px;
+        }
+        
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #c0c0c0;
+            font-family: 'Courier New', 'Courier', monospace;
+            font-size: 16px;
+            outline: none;
+            caret-color: #c0c0c0;
+        }
+        
+        input::selection {
+            background: #c0c0c0;
+            color: #0a0a0a;
+        }
+        
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #c0c0c0;
+            animation: blink 1s step-end infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        .loading {
+            color: #c0c0c0;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border: 1px solid #808080;
+            background: #0a0a0a;
+            z-index: 3;
+            font-size: 12px;
+            text-align: right;
+            line-height: 1.4;
+        }
+        
+        .status.connected {
+            color: #c0c0c0;
+        }
+        
+        .status.disconnected {
+            color: #808080;
+        }
+        
+        #colorPicker {
+            width: 60px;
+            height: 20px;
+            border: 1px solid #808080;
+            background: transparent;
+            cursor: pointer;
+            margin-top: 3px;
+        }
+        
+        #aiColorPicker {
+            width: 60px;
+            height: 20px;
+            border: 1px solid #808080;
+            background: transparent;
+            cursor: pointer;
+            margin-top: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="status disconnected" id="status">● DISCONNECTED<br><span id="sysinfo"></span><br>TERM: <input type="color" id="colorPicker" value="#c0c0c0"><br>AI: <input type="color" id="aiColorPicker" value="#ffb000"></div>
+    
+    <div class="container">
+        <div class="header">
+            <div>===============================</div>
+            <div>  LOCAL LLM TERMINAL v1.0    </div>
+            <div>===============================</div>
+        </div>
+        
+        <div class="output" id="output">
+            <div class="system-msg">SYSTEM INITIALIZED...</div>
+            <div class="system-msg" id="model-info">LOADING LANGUAGE MODEL...</div>
+            <div class="system-msg">CONNECTING TO OLLAMA SERVICE...</div>
+            <div class="system-msg">READY. TYPE YOUR MESSAGE AND PRESS ENTER.</div>
+            <div class="system-msg">===============================================================</div>
+        </div>
+        
+        <div class="input-area">
+            <div class="prompt">
+                <span class="prompt-symbol">►</span>
+                <input type="text" id="input" placeholder="Enter your query..." autofocus>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const output = document.getElementById('output');
+        const input = document.getElementById('input');
+        const status = document.getElementById('status');
+        const sysinfo = document.getElementById('sysinfo');
+        const modelInfo = document.getElementById('model-info');
+        const colorPicker = document.getElementById('colorPicker');
+        const aiColorPicker = document.getElementById('aiColorPicker');
+        let isProcessing = false;
+        let currentModel = 'gemma:2b';
+
+        function handleColorChange(e) {
+            const color = e.target.value;
+            document.body.style.color = color;
+            document.querySelectorAll('.user-msg').forEach(el => el.style.color = color);
+            document.querySelectorAll('.system-msg').forEach(el => el.style.color = color);
+            document.querySelector('.prompt-symbol').style.color = color;
+            input.style.color = color;
+            input.style.caretColor = color;
+            localStorage.setItem('terminalColor', color);
+        }
+        
+        colorPicker.addEventListener('change', handleColorChange);
+
+        function handleAIColorChange(e) {
+            const color = e.target.value;
+            document.querySelectorAll('.ai-msg').forEach(el => el.style.color = color);
+            localStorage.setItem('aiColor', color);
+        }
+        
+        aiColorPicker.addEventListener('change', handleAIColorChange);
+
+        const savedColor = localStorage.getItem('terminalColor');
+        if (savedColor) {
+            colorPicker.value = savedColor;
+            colorPicker.dispatchEvent(new Event('change'));
+        }
+        
+        const savedAIColor = localStorage.getItem('aiColor');
+        if (savedAIColor) {
+            aiColorPicker.value = savedAIColor;
+            aiColorPicker.dispatchEvent(new Event('change'));
+        }
+
+        checkConnection();
+        updateSystemInfo();
+
+        async function checkConnection() {
+            try {
+                const response = await fetch(`http://${window.location.hostname}:11434/api/tags`);
+                if (response.ok) {
+                    const connectionText = '● CONNECTED';
+                    status.innerHTML = `${connectionText}<br><span id="sysinfo">${sysinfo.innerHTML}</span><br>TERM: <input type="color" id="colorPicker" value="${colorPicker.value}"><br>AI: <input type="color" id="aiColorPicker" value="${aiColorPicker.value}">`;
+                    status.className = 'status connected';
+                    
+                    const newPicker = document.getElementById('colorPicker');
+                    const newAIPicker = document.getElementById('aiColorPicker');
+                    newPicker.addEventListener('change', handleColorChange);
+                    newAIPicker.addEventListener('change', handleAIColorChange);
+                    
+                    const data = await response.json();
+                    if (data.models && data.models.length > 0) {
+                        currentModel = data.models[0].name;
+                        const modelSize = data.models[0].size ? 
+                            `(${(data.models[0].size / 1e9).toFixed(1)}B)` : '';
+                        modelInfo.textContent = `LOADING LANGUAGE MODEL: ${currentModel.toUpperCase()} ${modelSize}...`;
+                    }
+                } else {
+                    const connectionText = '● DISCONNECTED';
+                    status.innerHTML = `${connectionText}<br><span id="sysinfo">${sysinfo.innerHTML}</span><br>TERM: <input type="color" id="colorPicker" value="${colorPicker.value}"><br>AI: <input type="color" id="aiColorPicker" value="${aiColorPicker.value}">`;
+                    status.className = 'status disconnected';
+                    
+                    const newPicker = document.getElementById('colorPicker');
+                    const newAIPicker = document.getElementById('aiColorPicker');
+                    newPicker.addEventListener('change', handleColorChange);
+                    newAIPicker.addEventListener('change', handleAIColorChange);
+                }
+            } catch (e) {
+                const connectionText = '● DISCONNECTED';
+                status.innerHTML = `${connectionText}<br><span id="sysinfo">${sysinfo.innerHTML}</span><br>TERM: <input type="color" id="colorPicker" value="${colorPicker.value}"><br>AI: <input type="color" id="aiColorPicker" value="${aiColorPicker.value}">`;
+                status.className = 'status disconnected';
+                
+                const newPicker = document.getElementById('colorPicker');
+                const newAIPicker = document.getElementById('aiColorPicker');
+                newPicker.addEventListener('change', handleColorChange);
+                newAIPicker.addEventListener('change', handleAIColorChange);
+            }
+        }
+
+        function updateSystemInfo() {
+            const uptime = Math.floor(performance.now() / 1000);
+            const hours = Math.floor(uptime / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            const uptimeStr = `${hours}h ${minutes}m`;
+            
+            sysinfo.innerHTML = `UP: ${uptimeStr}`;
+            
+            setTimeout(updateSystemInfo, 60000);
+        }
+
+        function addMessage(text, type) {
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            
+            if (type === 'ai-msg') {
+                const savedAIColor = localStorage.getItem('aiColor');
+                if (savedAIColor) {
+                    msg.style.color = savedAIColor;
+                }
+                msg.textContent = '';
+                output.appendChild(msg);
+                typeWriter(msg, text, 0);
+            } else if (type === 'user-msg' || type === 'system-msg') {
+                const savedColor = localStorage.getItem('terminalColor');
+                if (savedColor) {
+                    msg.style.color = savedColor;
+                }
+                msg.textContent = text;
+                output.appendChild(msg);
+            } else {
+                msg.textContent = text;
+                output.appendChild(msg);
+            }
+            
+            output.parentElement.scrollTop = output.parentElement.scrollHeight;
+        }
+
+        function typeWriter(element, text, index) {
+            if (index < text.length) {
+                element.textContent += text.charAt(index);
+                output.parentElement.scrollTop = output.parentElement.scrollHeight;
+                setTimeout(() => typeWriter(element, text, index + 1), 10);
+            }
+        }
+
+        async function sendMessage(message) {
+            if (!message.trim() || isProcessing) return;
+            
+            isProcessing = true;
+            addMessage(`USER: ${message}`, 'user-msg');
+            addMessage('AI: Processing...', 'loading');
+            
+            input.value = '';
+            input.disabled = true;
+
+            try {
+                const response = await fetch(`http://${window.location.hostname}:11434/api/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: currentModel,
+                        prompt: message,
+                        stream: false,
+                        system: "You are a helpful AI assistant. Keep all responses under 3 sentences and be concise."
+                    })
+                });
+
+                output.lastChild.remove();
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                addMessage(`AI: ${data.response}`, 'ai-msg');
+                
+            } catch (e) {
+                output.lastChild.remove();
+                addMessage(`ERROR: ${e.message}`, 'system-msg');
+                addMessage('CHECK THAT OLLAMA IS RUNNING: sudo systemctl status ollama', 'system-msg');
+            }
+
+            input.disabled = false;
+            input.focus();
+            isProcessing = false;
+        }
+
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage(input.value);
+            }
+        });
+
+        setInterval(checkConnection, 10000);
+    </script>
+</body>
+</html>
