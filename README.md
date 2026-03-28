@@ -2,6 +2,8 @@
 
 A retro terminal-style web interface for interacting with local LLMs via Ollama.
 
+![Terminal Interface](screenshot.png)
+
 ## Features
 
 - Clean, minimal terminal aesthetic
