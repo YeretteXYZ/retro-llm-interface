@@ -1,4 +1,4 @@
-# Retro LLM Interface
+# Retro Local LLM Terminal
 
 A retro terminal-style web interface for interacting with local LLMs via Ollama.
 
@@ -23,7 +23,7 @@ A retro terminal-style web interface for interacting with local LLMs via Ollama.
 
 1. **Clone this repository:**
 ```bash
-   git clone https://github.com/YeretteXYZ/local-llm-terminal.git
+   git clone https://github.com/YeretteXYZ/retro-local-llm-terminal.git
    cd local-llm-terminal
 ```
 
