@@ -23,8 +23,8 @@ A retro terminal-style web interface for interacting with local LLMs via Ollama.
 
 1. **Clone this repository:**
 ```bash
-   git clone https://github.com/YeretteXYZ/retro-local-llm-terminal.git
-   cd retro-local-llm-terminal
+   git clone https://github.com/YeretteXYZ/retro-llm-terminal.git
+   cd retro-llm-terminal
 ```
 
 2. **Install and configure Ollama:**
