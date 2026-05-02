@@ -76,17 +76,6 @@ To modify response behavior, edit the `system` parameter in `index.html`:
 system: "You are a helpful AI assistant. Keep all responses under 3 sentences and be concise."
 ```
 
-## Remote Access
-
-To access from other devices on your network:
-```
-http://YOUR_IP:8080
-```
-
-## Support
-
-If you find this useful, consider [supporting development](https://app.paymento.io/payment-link/3a5de61d292149b894cc0d1565063657).
-
 ## License
 
 MIT
