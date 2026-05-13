@@ -1,6 +1,12 @@
 # Retro Local LLM Terminal
 
-A retro terminal-style web interface for interacting with local LLMs via Ollama.
+**A retro terminal-style web interface for interacting with local LLMs via Ollama.**
+
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+![Ollama](https://img.shields.io/badge/Ollama-required-black.svg?logo=ollama)
+
+---
 
 ![Terminal Interface](screenshot.png)
 
